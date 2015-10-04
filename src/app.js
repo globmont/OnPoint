@@ -59,14 +59,14 @@ function start(key) {
       var time = slides[snapshot.val()].time;
       console.log("Slide " + name + " " + time);
       var seconds = time;
-      main.subtitle(name);
-      main.body(seconds + " secs left.");
+      main.body(name);
+      main.subtitle(pad(Math.floor(seconds / 60)) + ":" + pad((seconds % 60)) + " remaining.");
       
       
       var timer = function() {
           if(shouldUpdateUI) {
-            main.subtitle(name);
-            main.body(seconds + " secs left.");
+            main.body(name);
+            main.subtitle(pad(Math.floor(seconds / 60)) + ":" + pad((seconds % 60)) + " remaining.");
           }
           seconds--;
           if(seconds < 0) {
@@ -77,9 +77,10 @@ function start(key) {
           }
       }
       
-      
-      var t = setInterval(timer, 1000);    
-      timers.push(t);
+      if(time > 0) {     
+        var t = setInterval(timer, 1000);    
+        timers.push(t);
+      }
     } else if(snapshot.val() == -1) {
       main.subtitle("Enter key in PowerPoint.");
       main.body("Key: " + key);
@@ -94,7 +95,7 @@ function start(key) {
   });
   
   main.on('click', 'select', function(e) {
-    shouldUpdateUI = !shouldUpdateUI;
+    shouldUpdateUI = false;
     
     keydb.orderByChild("index").once('value', function(data) {
       var keys = [];
@@ -113,13 +114,25 @@ function start(key) {
       
       menu.on('select', function(e) {
         selecteddb = new Firebase(baseurl + "monitor/" + e.item.title)
-        key = e.item.title;
-        selecteddb.update({
-          index: Date.now()
-        });
-        main.hide();
-        menu.hide();
-        start(key);
+        if(key != e.item.title) {
+          key = e.item.title;
+          selecteddb.update({
+            index: Date.now()
+          });
+          main.hide();
+          menu.hide();
+          for(i = 0; i < timers.length; i++) {
+            clearInterval(timers[i]);
+          }
+          start(key);
+        } else {
+          menu.hide();
+          shouldUpdateUI = true;
+        }
+      });
+      
+      menu.on('hide', function(e) {
+        shouldUpdateUI = true;
       });
       
       menu.show();
@@ -139,9 +152,12 @@ function start(key) {
 }  
   
   
-  function keygen(length) {
-    return Math.random().toString(36).substring(2, 2 + length);
-  }
+function keygen(length) {
+  return Math.random().toString(36).substring(2, 2 + length);
+}
 
+function pad(number) {
+    return (number < 10 ? '0' : '') + number;
+}
 
 start(key);
